@@ -1,6 +1,8 @@
 import numpy as np
 import re
 from itertools import  permutations
+from bs4 import BeautifulSoup
+import requests
 
 class BaseExtract:
     IN_TYPE = [list, str]
@@ -8,10 +10,13 @@ class BaseExtract:
 
 class Extractkr(BaseExtract):
     def __init__(self):
+        from pirivatekey import SearchKey
         self.k = None
         self.text = None
         self.decomposed = None
         self.combiedword = []
+        self.key = SearchKey().key
+        self.candidates= []
         self.first = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ',
                       'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ',
                       'ㅎ']
@@ -122,25 +127,30 @@ class Extractkr(BaseExtract):
         return chr(uni_compost)
 
     def searchword(self):
-        if len(self.combiedword) >1:
-            for words in self.combiedword:
-                for word in words:
+        url = 'https://opendict.korean.go.kr/api/search'
 
-                    pass
+        for words in self.combiedword:
+            candidates = []
+            if len(words) > 0:
+                for idx, word in enumerate(words):
+                    res = requests.get(url, {'key': self.key, 'q': word})
+                    text = res.text
+                    soup = BeautifulSoup(text, 'html.parser')
 
+                    if int(soup.find('total').get_text()) > 0:
+                        result = soup.find('word').get_text()
+                        print(result)
+                        if len(result) == len(word):
+                            candidates.append(result)
+
+            self.candidates.append(candidates)
+        return self.candidates
 
     def _split_unit(self, t):
         f = (t - 44032) // 588
         m = (t - 44032 - (f * 588)) // 28
         l = (t - 44032 - (f * 588) - (m * 28))
         return f, m, l
-
-    def _split_jamo(self, t):
-        f = (t - 44032) // 588
-        m = (t - 44032 - (f * 588)) // 28
-        l = (t - 44032 - (f * 588) - (m * 28))
-        return self.first[f], self.middle[m], self.last[l]
-
 
 if __name__ == '__main__':
 
@@ -158,4 +168,5 @@ if __name__ == '__main__':
     print(f'X: \t{type(x)} second word count {len(x[1])}')
     print(f'{x[1]}')
 
-    et.searchword()
+    candidates = et.searchword()
+    print(candidates)
