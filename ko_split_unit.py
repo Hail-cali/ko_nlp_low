@@ -1,6 +1,6 @@
 import numpy as np
 import re
-from itertools import combinations, permutations
+from itertools import  permutations
 
 class BaseExtract:
     IN_TYPE = [list, str]
@@ -11,6 +11,7 @@ class Extractkr(BaseExtract):
         self.k = None
         self.text = None
         self.decomposed = None
+        self.combiedword = []
         self.first = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ',
                       'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ',
                       'ㅎ']
@@ -25,8 +26,14 @@ class Extractkr(BaseExtract):
         self.reverse_l = dict(zip(self.last, range(len(self.last))))
 
     def fit(self, text):
+        if isinstance(text, list):
+            self.text = text
+        elif isinstance(text, str):
+            self.text = [text]
+        tokens = self._split_text()
+        units = self.makeToken(tokens)
 
-        return
+        return units
 
     def fit_transform(self, text):
         if isinstance(text, list):
@@ -37,41 +44,61 @@ class Extractkr(BaseExtract):
         tokens = self._split_text()
         units = self.makeToken(tokens)
         self.make_word(units)
-        return units
+        return self.combiedword
 
     def transform(self):
         pass
 
     def make_word(self, units):
         for unit in units:
-            word = []
+            word = self.permutate(unit, len(unit)//3)
+            self.combiedword.append(word)
+
+    def permutate(self, unit, k):
+        word = []
+        if k == 2:
             single = list(permutations(unit, 3))
-            print(f'len {len(single)} {single}')
             for s in single:
                 try:
+                    w1 = self._compose_token(s[0], s[1], s[2])
                     pair = list(permutations([u for u in unit if u not in s], 3))
-                    w1 = self._compose_token(s[0],s[1],s[2])
-                    print(w1)
                     for p in pair:
                         try:
-                            w2 = self._compose_token(p[0],p[1],p[2])
-                            word.append(w1+w2)
+                            w2 = self._compose_token(p[0], p[1], p[2])
+                            word.append(w1 + w2)
                         except:
                             continue
                 except:
                     continue
-            print(word)
-            print(len(word))
+        elif k == 3:
+            single = list(permutations(unit, 3))
+            for s in single:
+                try:
+                    w1 = self._compose_token(s[0], s[1], s[2])
+                    second = list(permutations([u for u in unit if u not in s], 3))
+                    for p in second:
+                        try:
+                            w2 = self._compose_token(p[0], p[1], p[2])
+                            third = list(permutations([u for u in unit if u not in s+p], 3))
+                            for q in third:
+                                try:
+                                    w3 = self._compose_token(q[0], q[1], q[2])
+                                    word.append(w1+w2+w3)
+                                except:
+                                    continue
+                        except:
+                            continue
+                except:
+                    continue
 
-        return
+        return list(set(word))
 
     def makeToken(self, tokens):
-        uni_tokens= []
+        uni_tokens = []
         for token in tokens:
             uni = [ord(t) for t in token]
-
             unit = []
-            for u in (self._split_jamo(u) for u in uni):
+            for u in (self._decompose_token(u) for u in uni):
                 unit.extend(u)
             uni_tokens.append(unit)
         return uni_tokens
@@ -80,17 +107,7 @@ class Extractkr(BaseExtract):
         token = [tuple(word) for word in self.text]
         return token
 
-    def _split_unit(self, t):
-        f = (t - 44032) // 588
-        m = (t - 44032 - (f * 588)) // 28
-        l = (t - 44032 - (f * 588) - (m * 28))
-        return f, m, l
-
-    def _decompose_token(self,t):
-
-
-        return
-    def _split_jamo(self, t):
+    def _decompose_token(self, t):
         f = (t - 44032) // 588
         m = (t - 44032 - (f * 588)) // 28
         l = (t - 44032 - (f * 588) - (m * 28))
@@ -104,16 +121,41 @@ class Extractkr(BaseExtract):
         uni_compost = ((first*588) + (middle*28) + last) + 44032
         return chr(uni_compost)
 
-    def _decompose_token(self):
-        #splited token into unit
-        return
+    def searchword(self):
+        if len(self.combiedword) >1:
+            for words in self.combiedword:
+                for word in words:
+
+                    pass
+
+
+    def _split_unit(self, t):
+        f = (t - 44032) // 588
+        m = (t - 44032 - (f * 588)) // 28
+        l = (t - 44032 - (f * 588) - (m * 28))
+        return f, m, l
+
+    def _split_jamo(self, t):
+        f = (t - 44032) // 588
+        m = (t - 44032 - (f * 588)) // 28
+        l = (t - 44032 - (f * 588) - (m * 28))
+        return self.first[f], self.middle[m], self.last[l]
+
 
 if __name__ == '__main__':
-    hangle = np.array([chr(code) for code in range(44032, 55204)])
-    hangle = hangle.reshape(19, 21, 28)
-    print(hangle)
-    print(f"{'':->30}")
+
+    # hangle = np.array([chr(code) for code in range(44032, 55204)])
+    # hangle = hangle.reshape(19, 21, 28)
+    # print(hangle)
+    #
+    # print(f"{'':->30}")
+
     target = ['능볏', '급대훈']
-    ee = Extractkr()
-    x = ee.fit_transform(target[0])
-    #print(f'X:\t{type(x)} {x[0]}')
+    et = Extractkr()
+    x = et.fit_transform(target)
+    print(f'X: \t{type(x)} first word count {len(x[0])}')
+    print(f'{x[0]}')
+    print(f'X: \t{type(x)} second word count {len(x[1])}')
+    print(f'{x[1]}')
+
+    et.searchword()
