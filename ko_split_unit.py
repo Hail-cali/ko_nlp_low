@@ -7,7 +7,7 @@ import time
 
 class BaseExtract:
     IN_TYPE = [list, str]
-    OUT_TYPE = [list, str]
+    OUT_TYPE = [list, list]
 
 class Extractkr(BaseExtract):
     def __init__(self):
@@ -198,7 +198,7 @@ if __name__ == '__main__':
     #
     # print(f"{'':->30}")
 
-    target = ['능볏', '급대훈', '강릉']
+    target = ['능볏', '급대훈', '강릉','승독식자']
     et = Extractkr()
 
     # start = time.time()
@@ -212,15 +212,18 @@ if __name__ == '__main__':
     print(f"{'':->20}result{'':->20}")
     start2 = time.time()
     tx = et.fit_transform(target)
-    print(f'run {time.time() - start2:.3f}s')  # 2208 word => 0.014s
+    end2 = time.time()
+
     print(f'recusive way')
 
     for idx, ls in enumerate(tx):
         print(f'{idx}st word count {len(ls)} \t{type(tx)}')
         print(f'{ls}')
     print()
-    print(f' total word list {sum(len(tx[i]) for i in range(len(tx)))}')
-
+    print(f"{'':->20}summary{'':->20}")
+    print(f'for {target}')
+    print(f'total word list {sum(len(tx[i]) for i in range(len(tx)))}')
+    print(f'run {end2 - start2:.3f}s')
     #search word using API
 
     #candidates = et.searchword()
