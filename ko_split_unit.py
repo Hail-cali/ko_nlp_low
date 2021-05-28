@@ -1,8 +1,9 @@
 import numpy as np
 import re
-from itertools import  permutations
+from itertools import permutations
 from bs4 import BeautifulSoup
 import requests
+import time
 
 class BaseExtract:
     IN_TYPE = [list, str]
@@ -17,6 +18,7 @@ class Extractkr(BaseExtract):
         self.combiedword = []
         self.key = SearchKey().key
         self.candidates= []
+        self.old_combined = []
         self.first = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ',
                       'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ',
                       'ㅎ']
@@ -37,66 +39,46 @@ class Extractkr(BaseExtract):
             self.text = [text]
         tokens = self._split_text()
         units = self.makeToken(tokens)
-
         return units
 
-    def fit_transform(self, text):
+    def fit_transform(self,text):
         if isinstance(text, list):
             self.text = text
         elif isinstance(text, str):
             self.text = [text]
 
+        self.k = len(self.text)
+        self.combiedword = [list() for _ in range(self.k)]
+
         tokens = self._split_text()
         units = self.makeToken(tokens)
-        self.make_word(units)
+        self.makeWords(units)
         return self.combiedword
+
 
     def transform(self):
         pass
 
-    def make_word(self, units):
-        for unit in units:
-            word = self.permutate(unit, len(unit)//3)
-            self.combiedword.append(word)
+    def makeWords(self, units):
+        for idx, unit in enumerate(units):
+            self.permutate(unit, tuple(), idx, len(unit)//3, '')
 
-    def permutate(self, unit, k):
-        word = []
-        if k == 2:
-            single = list(permutations(unit, 3))
-            for s in single:
-                try:
-                    w1 = self._compose_token(s[0], s[1], s[2])
-                    pair = list(permutations([u for u in unit if u not in s], 3))
-                    for p in pair:
-                        try:
-                            w2 = self._compose_token(p[0], p[1], p[2])
-                            word.append(w1 + w2)
-                        except:
-                            continue
-                except:
-                    continue
-        elif k == 3:
-            single = list(permutations(unit, 3))
-            for s in single:
-                try:
-                    w1 = self._compose_token(s[0], s[1], s[2])
-                    second = list(permutations([u for u in unit if u not in s], 3))
-                    for p in second:
-                        try:
-                            w2 = self._compose_token(p[0], p[1], p[2])
-                            third = list(permutations([u for u in unit if u not in s+p], 3))
-                            for q in third:
-                                try:
-                                    w3 = self._compose_token(q[0], q[1], q[2])
-                                    word.append(w1+w2+w3)
-                                except:
-                                    continue
-                        except:
-                            continue
-                except:
-                    continue
 
-        return list(set(word))
+    def permutate(self, unit, chosen, idx, k, term):
+        #print(f'loop K: {k}')
+        if k <= 0:
+            self.combiedword[idx].append(term)
+            return
+
+        loop = list(permutations([u for u in unit if u not in chosen], 3))
+        #print(f'len {len(loop)} {loop}')
+        for l in loop:
+            try:
+                w = self._compose_token(l[0], l[1], l[2])
+                #print(k, chosen + l, term)
+                self.permutate(unit, chosen+l,idx, k-1, term+w)
+            except:
+                continue
 
     def makeToken(self, tokens):
         uni_tokens = []
@@ -152,6 +134,62 @@ class Extractkr(BaseExtract):
         l = (t - 44032 - (f * 588) - (m * 28))
         return f, m, l
 
+    def old_fit_transform(self, text):
+        if isinstance(text, list):
+            self.text = text
+        elif isinstance(text, str):
+            self.text = [text]
+
+        tokens = self._split_text()
+        units = self.makeToken(tokens)
+        self.old_make_word(units)
+        return self.old_combined
+
+    def old_make_word(self, units):
+        for unit in units:
+            word = self.old_permutate(unit, len(unit)//3)
+            self.old_combined.append(word)
+
+    def old_permutate(self, unit, k):
+        word = []
+        if k == 2:
+            single = list(permutations(unit, 3))
+            for s in single:
+                try:
+                    w1 = self._compose_token(s[0], s[1], s[2])
+                    pair = list(permutations([u for u in unit if u not in s], 3))
+                    for p in pair:
+                        try:
+                            w2 = self._compose_token(p[0], p[1], p[2])
+                            word.append(w1 + w2)
+                        except:
+                            continue
+                except:
+                    continue
+        elif k == 3:
+            single = list(permutations(unit, 3))
+            for s in single:
+                try:
+                    w1 = self._compose_token(s[0], s[1], s[2])
+                    second = list(permutations([u for u in unit if u not in s], 3))
+                    for p in second:
+                        try:
+                            w2 = self._compose_token(p[0], p[1], p[2])
+                            third = list(permutations([u for u in unit if u not in s+p], 3))
+                            for q in third:
+                                try:
+                                    w3 = self._compose_token(q[0], q[1], q[2])
+                                    word.append(w1+w2+w3)
+                                except:
+                                    continue
+                        except:
+                            continue
+                except:
+                    continue
+
+        return list(set(word))
+
+
 if __name__ == '__main__':
 
     # hangle = np.array([chr(code) for code in range(44032, 55204)])
@@ -160,13 +198,30 @@ if __name__ == '__main__':
     #
     # print(f"{'':->30}")
 
-    target = ['능볏', '급대훈']
+    target = ['능볏', '급대훈', '강릉']
     et = Extractkr()
-    x = et.fit_transform(target)
-    print(f'X: \t{type(x)} first word count {len(x[0])}')
-    print(f'{x[0]}')
-    print(f'X: \t{type(x)} second word count {len(x[1])}')
-    print(f'{x[1]}')
 
-    candidates = et.searchword()
-    print(candidates)
+    # start = time.time()
+    # x = et.old_fit_transform(target)
+    # print(f'run {time.time()-start:.3f}s')   # 2208 => 0.014s
+    # print(f'X: \t{type(x)} first word count {len(x[0])}')
+    # print(f'{x[0]}')
+    # print(f'X: \t{type(x)} second word count {len(x[1])}')
+    # print(f'{x[1]}')
+
+    print(f"{'':->20}result{'':->20}")
+    start2 = time.time()
+    tx = et.fit_transform(target)
+    print(f'run {time.time() - start2:.3f}s')  # 2208 word => 0.014s
+    print(f'recusive way')
+
+    for idx, ls in enumerate(tx):
+        print(f'{idx}st word count {len(ls)} \t{type(tx)}')
+        print(f'{ls}')
+    print()
+    print(f' total word list {sum(len(tx[i]) for i in range(len(tx)))}')
+
+    #search word using API
+
+    #candidates = et.searchword()
+    #print(candidates)
